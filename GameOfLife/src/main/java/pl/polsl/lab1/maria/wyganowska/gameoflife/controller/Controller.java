@@ -1,211 +1,154 @@
 package pl.polsl.lab1.maria.wyganowska.gameoflife.controller;
 import pl.polsl.lab1.maria.wyganowska.gameoflife.model.Grid;
-import pl.polsl.lab1.maria.wyganowska.gameoflife.view.ConsoleView;
-import pl.polsl.lab1.maria.wyganowska.gameoflife.model.User;
-import java.util.Scanner;
+import pl.polsl.lab1.maria.wyganowska.gameoflife.view.GUIView;
+import javax.swing.*;
+import pl.polsl.lab1.maria.wyganowska.gameoflife.model.Coordinates;
+import pl.polsl.lab1.maria.wyganowska.gameoflife.model.CellState;
+import lombok.Getter;
+import lombok.Setter;
 /**
- * Class representing the controller which acts as an intermediary between the model classes and the view
+ * The controller class which manages the communication between the model and the view (GUIView).
+ * It handles user input, grid state updates, and UI changes.
  * @author Maria Wyganowska
- * @version 1.0
+ * @version 2.0
  */
 public class Controller {
     private final Grid grid;
-    private final ConsoleView view;
-    private final Scanner controllerScanner;
-    private final User user;
-    private boolean correctInput;
-    private int maxChoiceNumber;
-    private final int minChoiceNumber;
-    /**
-     * The constructor of the Controller class, which sets up all elements needed for running the program
-     * @param grid The grid used in the program
-     * @param view The view used for displaying the application
-     */
-    public Controller(Grid grid, ConsoleView view) {
+    private final GUIView view;
+    @Getter
+    private boolean editingMode;
+    @Getter 
+    @Setter
+    private int selectedRow;
+    @Getter 
+    @Setter
+    private int selectedCol;
+    private Coordinates selectedCell;
+/***
+ * Constructor that initializes the grid, view, and sets up some initial cells.
+ * @param grid The grid for the game.
+ * @param view The view to display the game.
+ */
+    public Controller(Grid grid, GUIView view) {
         this.grid = grid;
         this.view = view;
-        this.controllerScanner = new Scanner(System.in);
-        this.user = new User();
-        correctInput = false;
-        maxChoiceNumber = 3;
-        minChoiceNumber = 1;
+        grid.setCellStatus(3, 2, CellState.ALIVE);
+        grid.setCellStatus(3, 3, CellState.ALIVE);
+        grid.setCellStatus(3, 4, CellState.ALIVE);
+        this.view.setController(this);
+        this.view.getGridPanel().setController(this);
+        selectedCell = new Coordinates(0, 0);
+        editingMode = false;
+        selectedCol = 0;
+        selectedRow = 0;
     }
-/**
- * Method which handles the main game loop and communication between the view and the model during playing
- */
-    private void runGame() {
-        boolean continueGame = true;
-        while (continueGame) {
-            view.displayGrid();
-            view.printGameMenu();
-            maxChoiceNumber = 2;
-            correctInput = false;
-            while(!correctInput){
-                try{
-                    user.setInput(controllerScanner.nextInt());
-                    user.validateInput(maxChoiceNumber, minChoiceNumber);
-                    correctInput = true;
-                }
-                catch(IllegalArgumentException e){
-                    view.printInputError();
-                    controllerScanner.nextLine();
-                }
-                catch(Exception e){
-                    view.printInputError();
-                    controllerScanner.nextLine();
-                }
-            }
-            switch(user.getInput()){
-                case 1 -> {
-                    grid.updateState(); 
-                    continueGame = true;
-                }
-                case 2 -> {
-                    continueGame = false;
-                    grid.resetGrid();
-                    runMainMenu();
-                }
-            }
-        }
-    }
-    /**
-     * Method which handles showing the main menu of the game and inputs given by user
+   
+    /***
+     * Class representing the exception thrown when an invalid grid size is provided.
      */
-    public void runMainMenu(){
-        maxChoiceNumber = 4;
-        view.printMainMenu();
-        correctInput = false;
-            while(!correctInput){
-                try{
-                    user.setInput(controllerScanner.nextInt());
-                    user.validateInput(maxChoiceNumber, minChoiceNumber);
-                    correctInput = true;
-                }
-                catch(IllegalArgumentException e){
-                    view.printInputError();
-                    controllerScanner.nextLine();
-                }
-                catch(Exception e){
-                    view.printInputError();
-                    controllerScanner.nextLine();
-                }
-            }
-            switch(user.getInput()){
-                case 1 -> {
-                    runGame();
-                }
-                case 2 -> {
-                    view.printAboutSection();
-                    runMainMenu();
-                }
-                case 3 ->{
-                    runOptionsMenu();
-                }
-                case 4 ->{
-                    System.out.println("Exiting program...");
-                }
-            }
-    }
-    /**
-     * Method which handles running the options menu and what to do with user's input
-     */
-    private void runOptionsMenu(){
-    view.printOptionsSection();
-    correctInput = false;
-    while(!correctInput){
-        try{
-            user.setInput(controllerScanner.nextInt());
-            user.validateInput(2, 1);
-            correctInput = true;
-        } catch (Exception e) {
-            view.printInputError();
-            controllerScanner.nextLine();
-        }
-    }
-    switch(user.getInput()){
-        case 1 -> changeGridParameters();
-        case 2 -> changeCellPattern();
+public class InvalidGridSizeException extends Exception {
+    public InvalidGridSizeException(String message) {
+        super(message);
     }
 }
-/**
- * Method which handles the submenu where the initial cell pattern can be changed
- */
-private void changeCellPattern(){
-    view.printChangeCells();
-            correctInput = false;
-            maxChoiceNumber = 4;
-            while(!correctInput){
-                try{
-                    user.setInput(controllerScanner.nextInt());
-                    user.validateInput(maxChoiceNumber, 1);
-                    correctInput = true;
-                } 
-                catch (Exception e) {
-                    view.printInputError();
-                    controllerScanner.nextLine();
-                }   
-            }
-            changePattern(user.getInput());
-            runMainMenu();
-}
-/**
- * Method which handles the submenu where the grid size can be changed
- */
-private void changeGridParameters() {
-    view.printChangeGrid();
-    correctInput = false;
-    maxChoiceNumber = 20;
-
-    while (!correctInput) {
+    /***
+     * Starts the game by invoking the GUI creation on the Swing event dispatch thread.
+     */
+    public void startGame() {
+        SwingUtilities.invokeLater(() -> view.createAndShowGUI());
+    }
+    /***
+     * Continues the game by updating the grid state and refreshing the view.
+     */
+    private void continueGame() {
+        grid.updateState();
+        view.updateGridDisplay();
+    }
+    /***
+     * Prompts the user to change the grid size, validates the input, and updates the grid accordingly.
+     */
+    private void changeGridSize() {
+    String input = JOptionPane.showInputDialog(null, "Enter new grid size:", "Change Grid Size", JOptionPane.PLAIN_MESSAGE);
+    if (input != null) {
         try {
-            user.setInput(controllerScanner.nextInt());
-            user.validateInput(maxChoiceNumber, 5);
-            user.setDesiredSize(user.getInput());
-            correctInput = true;
-        } catch (Exception e) {
-            view.printInputError();
-            controllerScanner.nextLine();
-        }
-    }
-    grid.setSize(user.getDesiredSize());
-    runMainMenu();
-}
-/**
- * Method which changes the initial pattern of cells on a grid
- * @param choice The number of a pattern chosen by the user in options menu
- */
-private void changePattern(int choice){
-    switch(choice){
-        case 1 ->{
-        grid.setCellStatus(1, 2, true);
-        grid.setCellStatus(2, 3, true);
-        grid.setCellStatus(3, 1, true);
-        grid.setCellStatus(3, 2, true);
-        grid.setCellStatus(3, 3, true);
-        }
-        case 2 ->{
-        grid.setCellStatus(1, 1, true);
-        grid.setCellStatus(1, 2, true);
-        grid.setCellStatus(2, 1, true);
-        grid.setCellStatus(2, 2, true);
-        grid.setCellStatus(3, 3, true);
-        grid.setCellStatus(3, 4, true);
-        grid.setCellStatus(4, 3, true);
-        grid.setCellStatus(4, 4, true);
-        }
-        case 3 ->{
-        grid.setCellStatus(2, 2, true);
-        grid.setCellStatus(2, 3, true);
-        grid.setCellStatus(2, 4, true);
-        grid.setCellStatus(3, 1, true);
-        grid.setCellStatus(3, 2, true);
-        grid.setCellStatus(3, 3, true);
-        }
-        case 4 ->{
-        grid.setCellStatus(3, 2, true);
-        grid.setCellStatus(3, 3, true);
-        grid.setCellStatus(3, 4, true);
+            int newSize = Integer.parseInt(input);
+            if (newSize <= 0) {
+                throw new InvalidGridSizeException("Size must be positive!");
+            }
+            grid.setSize(newSize);
+            view.updateGridDisplay();
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(null, "Invalid size entered!", "Error", JOptionPane.ERROR_MESSAGE);
+        } catch (InvalidGridSizeException ex) {
+            JOptionPane.showMessageDialog(null, ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 }
+    /***
+     * Handles key presses for navigation and actions in editing mode.
+     * @param keyCode The key code of the pressed key.
+     */
+    public void handleKeyPress(int keyCode) {
+        if (editingMode) {
+            handleEditingKeyPress(keyCode);
+        }
+        view.updateGridDisplay();
+    }
+    /***
+     * Handles key presses specifically for editing mode, including navigation and cell state toggle.
+     * @param keyCode The key code of the pressed key.
+     */
+private void handleEditingKeyPress(int keyCode) {
+    int row = selectedCell.row();
+    int col = selectedCell.col();
+    switch (keyCode) {
+        case java.awt.event.KeyEvent.VK_UP -> row = (row > 0) ? row - 1 : grid.getHeight() - 1;
+        case java.awt.event.KeyEvent.VK_DOWN -> row = (row + 1) % grid.getHeight();
+        case java.awt.event.KeyEvent.VK_LEFT -> col = (col > 0) ? col - 1 : grid.getWidth() - 1;
+        case java.awt.event.KeyEvent.VK_RIGHT -> col = (col + 1) % grid.getWidth();
+        case java.awt.event.KeyEvent.VK_ENTER -> toggleCellState();
+        case java.awt.event.KeyEvent.VK_ESCAPE -> disableEditingMode();
+    }
+    selectedCell = new Coordinates(row, col);
+    selectedRow = row;
+    selectedCol = col;
+}
+    /***
+     * Toggles the state (alive or dead) of the currently selected cell.
+     */
+    private void toggleCellState() {
+            grid.getCell(selectedRow, selectedCol).switchAliveStatus();
+    }
+    /***
+     * Disables editing mode and shows an informational message to the user.
+     */
+public void disableEditingMode() {
+    editingMode = false;
+    JOptionPane.showMessageDialog(null, "Editing mode exited.", 
+                                  "Editing Mode", JOptionPane.INFORMATION_MESSAGE);
+    view.updateGridDisplay();
+}
+    /***
+     * Enables editing mode and shows an informational message to the user.
+     */
+public void enableEditingMode() {
+    editingMode = true;
+    JOptionPane.showMessageDialog(null, "Editing mode enabled. Use arrow keys to navigate. Press ENTER to toggle cell state or ESC to exit.", 
+                                  "Editing Mode", JOptionPane.INFORMATION_MESSAGE);
+    view.updateGridDisplay();
+}
+    /***
+     * Handles the selection of menu actions and calls the corresponding method.
+     * @param action The selected action from the menu.
+     */
+    public void handleMenuAction(String action){
+        switch (action) {
+        case "Continue" -> continueGame();
+            case "Grid size" -> changeGridSize();
+            case "Cells" -> enableEditingMode();
+            case "Show Cell Table" -> view.showCellTable();
+            case "About" -> view.showAboutPanel();
+            case "Return to game" -> view.showGrid();
+    }
+    }
 }
